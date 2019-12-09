@@ -7,7 +7,7 @@ import * as LRUCache from 'lru-cache';
 import * as cp from 'child_process';
 
 const PORT = 2615;
-const HOST = 'api.iswaac.org';
+const HOST = 'api.iswaac.dev';
 const GZIP_SIZE = 4096;
 const MAX_QUEUE_SIZE = 100;
 const MAX_TASKS_COUNT = 1e4;
