@@ -1,0 +1,35 @@
+#!/bin/bash
+
+REPO_URL=$1;
+REPO_PATH=$2;
+TEMP_DIR=$3;
+
+REPO_DIR=$TEMP_DIR/proj;
+JSON_DIR=$TEMP_DIR/json;
+
+VAST=$JSON_DIR/vast.json;
+TMAP=$JSON_DIR/tmap.json;
+TM3D=$JSON_DIR/tm3d.json;
+
+if [ -z "$REPO_URL" ] || [ -z "$REPO_PATH" ] || [ -z "$TEMP_DIR" ]
+then
+  echo "$0 https://github.com/foo/bar /src/abc /tmp/xyz";
+  exit 1;
+fi
+
+echo "Cleaning $TEMP_DIR";
+mkdir -p $TEMP_DIR;
+rm -rf $TEMP_DIR/*;
+mkdir -p $JSON_DIR;
+
+echo "Cloning sources into $REPO_DIR";
+git clone --depth 1 --branch master --single-branch $REPO_URL $REPO_DIR || exit 1;
+
+echo "Parsing TS and generating AST in $VAST";
+(cd ../ts-ast && node jsbin $REPO_DIR/$REPO_PATH > $VAST) || exit 1;
+
+echo "Converting AST into a treemap in $TMAP";
+(cd ../treemap && node index $VAST > $TMAP) || exit 1;
+
+echo "Generating a 3D treemap layout in $TM3D";
+(cd ../tm3d && node index $TMAP > $TM3D) || exit 1;
