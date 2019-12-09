@@ -12,6 +12,7 @@ const GZIP_SIZE = 4096;
 const MAX_QUEUE_SIZE = 100;
 const MAX_TASKS_COUNT = 1e4;
 const QTASK_CHECK_INTERVAL = 1000;
+const QTASK_TIMEOUT = 60e3;
 const GIT_BASE_URL = 'https://github.com';
 const BASH_SCRIPT = 'sh/tm3d';
 const TASK_TEMP_DIR = '/tmp/sw3d/task';
@@ -173,9 +174,21 @@ class QTask {
       QTask.tpromise = new Promise((resolve, reject) => {
         let url = `${GIT_BASE_URL}/${owner}/${project}`;
         let command = `${BASH_SCRIPT} ${url} /${relpath} ${TASK_TEMP_DIR}`;
-        QTask.tprocess = cp.exec(command, (err, res) =>
+        let proc = cp.exec(command, (err, res) =>
           err ? reject(err) : resolve(res));
-        log.i(`pid ${QTask.tprocess.pid}: ${command}`);
+
+        QTask.tprocess = proc;
+        log.i(`pid ${proc.pid}: ${command}`);
+
+        let timer = setTimeout(() => {
+          if (proc.pid !== QTask.tprocess?.pid)
+            return;
+          log.i(`pid ${proc.pid} timed out`);
+          cp.exec(`kill ${proc.pid}`);
+          reject(new Error('Timed out'));
+        }, QTASK_TIMEOUT);
+
+        proc.on('exit', () => clearTimeout(timer));
       });
 
       await QTask.tpromise;

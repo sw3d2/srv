@@ -23,7 +23,7 @@ rm -rf $TEMP_DIR/*;
 mkdir -p $JSON_DIR;
 
 echo "Cloning sources into $REPO_DIR";
-git clone --depth 1 --branch master --single-branch $REPO_URL $REPO_DIR || exit 1;
+(GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch master --single-branch $REPO_URL $REPO_DIR) || exit 1;
 
 echo "Parsing TS and generating AST in $VAST";
 (cd ../ts-ast && node jsbin $REPO_DIR/$REPO_PATH > $VAST) || exit 1;
