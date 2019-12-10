@@ -1,2 +1,4 @@
 #!/bin/bash
-npm i && tsc && node tsc-bin;
+npm i && tsc || exit 1;
+fuser -kv 2615/tcp;
+node tsc-bin;

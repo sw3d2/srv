@@ -100,6 +100,7 @@ enum QTaskState {
  */
 class QTask {
   static readonly tqueue: QTask[] = [];
+  static readonly hqueue = new Map<string, QTask>();
   static readonly rtasks = new LRUCache<string, QTask>(MAX_TASKS_COUNT);
   static qwatcher?: NodeJS.Timer;
   static tpending?: QTask;
@@ -107,10 +108,11 @@ class QTask {
   static tpromise?: Promise<string>;
 
   public duration = 0;
-  public error?: Error;
+  public error?: string;
 
   static get(id: string) {
     let t = QTask.rtasks.get(id)
+      || QTask.hqueue.get(id)
       || new QTask(id);
     QTask.rtasks.set(id, t);
     return t;
@@ -127,6 +129,7 @@ class QTask {
     if (!QTask.tqueue.length || QTask.tpending)
       return;
     let [t] = QTask.tqueue.splice(0, 1);
+    QTask.hqueue.delete(t.id);
     QTask.tpending = t;
     t.process();
   }
@@ -156,11 +159,12 @@ class QTask {
 
   enqueue() {
     if (QTask.tqueue.length >= MAX_QUEUE_SIZE)
-      throw new HttpError(500, 'Queue Full',
+      throw new HttpError(503, 'Queue Full',
         `There are already ${QTask.tqueue.length} tasks in the queue`);
 
     log.i('task', this.id, 'enqueued');
     QTask.tqueue.push(this);
+    QTask.hqueue.set(this.id, this);
     QTask.startQueueWatcher();
   }
 
@@ -202,7 +206,7 @@ class QTask {
       log.i('task', this.id, 'finished');
     } catch (err) {
       log.e('bash script failed:', err);
-      this.error = err;
+      this.error = err + '';
     } finally {
       this.duration = Date.now() - time;
       log.i('task', this.id, 'done in', this.duration, 'ms');
@@ -236,16 +240,30 @@ async function executeHandler(req: http.IncomingMessage): Promise<SResp | null> 
 
   switch (task.state) {
     case QTaskState.READY:
-      return { body: task.json, headers: { [CONTENT_TYPE]: 'application/json' } };
+      return {
+        statusCode: 200,
+        body: task.json,
+        headers: {
+          [CONTENT_TYPE]: 'application/json',
+        },
+      };
     case QTaskState.FAILED:
-      throw new HttpError(500, 'Task Failed', task.error + '');
+      throw new HttpError(500, 'Task Failed', task.error);
     case QTaskState.QUEUED:
     case QTaskState.NONE:
       if (task.state == QTaskState.NONE)
         task.enqueue();
-      return { statusCode: 201, statusMessage: 'Waiting', text: 'Position in queue: ' + task.qpos };
+      return {
+        statusCode: 201,
+        statusMessage: 'Waiting',
+        text: 'Position in queue: ' + task.qpos,
+      };
     case QTaskState.RUNNING:
-      return { statusCode: 202, statusMessage: 'Running', text: 'Running' };
+      return {
+        statusCode: 202,
+        statusMessage: 'Running',
+        text: 'Running',
+      };
     default:
       throw new Error('Unexpected task state: ' + task.state);
   }
@@ -272,6 +290,9 @@ async function handleHttpRequest(req: http.IncomingMessage, res: http.ServerResp
       }
     }
 
+    res.statusCode = rsp.statusCode || 200;
+    res.statusMessage = rsp.statusMessage || '';
+
     for (let name in rsp.headers || {}) {
       res.setHeader(name, rsp.headers[name]);
     }
@@ -288,9 +309,6 @@ async function handleHttpRequest(req: http.IncomingMessage, res: http.ServerResp
     } else if (rsp.body) {
       res.write(rsp.body);
     }
-
-    res.statusCode = rsp.statusCode || 200;
-    res.statusMessage = rsp.statusMessage || '';
   } catch (err) {
     if (err instanceof HttpError) {
       res.statusCode = err.statusCode;
@@ -302,7 +320,7 @@ async function handleHttpRequest(req: http.IncomingMessage, res: http.ServerResp
     }
   } finally {
     res.end();
-    log.i('HTTP', res.statusCode);
+    log.i('HTTP', res.statusCode, res.statusMessage || '');
   }
 }
 
