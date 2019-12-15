@@ -1,4 +1,0 @@
-#!/bin/bash
-DIR=/tmp/sw3d/task;
-URL=https://github.com/facebook/react;
-sh/tm3d $URL $DIR;

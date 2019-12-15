@@ -1,9 +1,7 @@
 {
   "dependencies": {
     "lru-cache": "5.1.1",
-    "treemap-ast": "1.0.0",
-    "webgl-3d-treemap": "1.0.0",
-    "ast-typescript": "1.0.0"
+    "iswaac": "1.0.0"
   },
   "devDependencies": {
     "@types/lru-cache": "5.1.0",

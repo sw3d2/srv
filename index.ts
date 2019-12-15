@@ -14,10 +14,10 @@ const MAX_TASKS_COUNT = 1e4;
 const QTASK_CHECK_INTERVAL = 1000;
 const QTASK_TIMEOUT = 60e3;
 const GIT_BASE_URL = 'https://github.com';
-const BASH_SCRIPT = 'sh/tm3d';
-const TASK_TEMP_DIR = '/tmp/sw3d/task';
+const BASH_SCRIPT = 'node_modules/.bin/iswaac';
+const TASK_TEMP_DIR = '/tmp/iswaac/task';
 const TASK_RES_JSON = `${TASK_TEMP_DIR}/json/tm3d.json`;
-const RES_JSON_DIR = '/tmp/sw3d/json';
+const RES_JSON_DIR = '/tmp/iswaac/json';
 const RES_JSON_FILE = '3d.json';
 const CERT_DIR = `/etc/letsencrypt/live/${HOST}`;
 const CERT_KEYFILE = 'privkey.pem';
@@ -85,7 +85,7 @@ enum QTaskState {
  * 
  *  - Processing: only 1 task is being processed
  *      at a time; intermediate data gets written
- *      to /tmp/sw3d/task; consists of stages:
+ *      to /tmp/iswaac/task; consists of stages:
  * 
  *        1. git clone -> *.ts sources
  *        2. tsc -> ast.json
@@ -93,7 +93,7 @@ enum QTaskState {
  *        4. 3d layout -> layout.json
  * 
  *  - Ready: the 3d layout json is saved to
- *      /tmp/sw3d/json/<owner>/<project>/<path>/3d.json
+ *      /tmp/iswaac/json/<owner>/<project>/<path>/3d.json
  * 
  *  - Failed: the error is kept in memory and
  *      is lost on process exit.
