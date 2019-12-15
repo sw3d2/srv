@@ -33,4 +33,4 @@ echo "Converting AST into a treemap in $TMAP";
 treemap-ast $VAST > $TMAP || exit 1;
 
 echo "Generating a 3D treemap layout in $TM3D";
-(cd ../tm3d && node index $TMAP > $TM3D) || exit 1;
+webgl-3d-treemap $TMAP > $TM3D || exit 1;
