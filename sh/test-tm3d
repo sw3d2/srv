@@ -1,0 +1,4 @@
+#!/bin/bash
+DIR=/tmp/sw3d/task;
+URL=https://github.com/sw3d2/srv;
+sh/tm3d $URL / $DIR;
