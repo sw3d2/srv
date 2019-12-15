@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "lru-cache": "5.1.1",
+    "treemap-ast": "1.0.0",
     "ast-typescript": "1.0.0"
   },
   "devDependencies": {
