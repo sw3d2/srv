@@ -1,10 +1,7 @@
 {
-  "scripts": {
-    "postinstall": "(cd node_modules/ts-ast; npm run prepublish)"
-  },
   "dependencies": {
     "lru-cache": "5.1.1",
-    "ts-ast": "github:sw3d2/ts-ast"
+    "ast-typescript": "1.0.0"
   },
   "devDependencies": {
     "@types/lru-cache": "5.1.0",
