@@ -2,8 +2,8 @@
 PATH=node_modules/.bin:$PATH
 
 REPO_URL=$1;
-REPO_PATH=$2;
-TEMP_DIR=$3;
+TEMP_DIR=$2;
+REPO_PATH=$3;
 
 REPO_DIR=$TEMP_DIR/proj;
 JSON_DIR=$TEMP_DIR/json;
@@ -12,9 +12,9 @@ VAST=$JSON_DIR/vast.json;
 TMAP=$JSON_DIR/tmap.json;
 TM3D=$JSON_DIR/tm3d.json;
 
-if [ -z "$REPO_URL" ] || [ -z "$REPO_PATH" ] || [ -z "$TEMP_DIR" ]
+if [ -z "$REPO_URL" ] || [ -z "$TEMP_DIR" ]
 then
-  echo "$0 https://github.com/foo/bar /src/abc /tmp/xyz";
+  echo "$0 https://github.com/foo/bar /tmp/xyz src/abc";
   exit 1;
 fi
 

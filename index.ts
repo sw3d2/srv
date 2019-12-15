@@ -177,7 +177,7 @@ class QTask {
       QTask.tpending = this;
       QTask.tpromise = new Promise((resolve, reject) => {
         let url = `${GIT_BASE_URL}/${owner}/${project}`;
-        let command = `${BASH_SCRIPT} ${url} /${relpath} ${TASK_TEMP_DIR}`;
+        let command = `${BASH_SCRIPT} ${url} ${TASK_TEMP_DIR} ${relpath}`;
         let proc = cp.exec(command, (err, res) =>
           err ? reject(err) : resolve(res));
 
