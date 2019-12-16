@@ -178,21 +178,19 @@ class QTask {
       QTask.tpromise = new Promise((resolve, reject) => {
         let url = `${GIT_BASE_URL}/${owner}/${project}`;
         let command = `${BASH_SCRIPT} ${url} ${TASK_TEMP_DIR} ${relpath}`;
-        let proc = cp.exec(command, (err, res) =>
-          err ? reject(err) : resolve(res));
+        let options: cp.SpawnOptions = {
+          timeout: QTASK_TIMEOUT,
+          stdio: 'inherit',
+          shell: true,
+        };
 
+        let proc = cp.spawn(command, options);
         QTask.tprocess = proc;
         log.i(`pid ${proc.pid}: ${command}`);
 
-        let timer = setTimeout(() => {
-          if (proc.pid !== QTask.tprocess?.pid)
-            return;
-          log.i(`pid ${proc.pid} timed out`);
-          cp.exec(`kill ${proc.pid}`);
-          reject(new Error('Timed out'));
-        }, QTASK_TIMEOUT);
-
-        proc.on('exit', () => clearTimeout(timer));
+        proc.once('exit', code => code ?
+          reject(new Error('Exit code: ' + code)) :
+          resolve());
       });
 
       await QTask.tpromise;
@@ -202,7 +200,7 @@ class QTask {
       let jsondir = path.dirname(jsonpath);
       log.i(`moving the json file to ${jsonpath}`);
       cp.execSync(`mkdir -p ${jsondir}`);
-      fs.renameSync(TASK_RES_JSON, jsonpath);
+      fs.copyFileSync(TASK_RES_JSON, jsonpath);
       log.i('task', this.id, 'finished');
     } catch (err) {
       log.e('bash script failed:', err);
@@ -218,7 +216,12 @@ class QTask {
 
   private getJsonPath() {
     let { owner, project, relpath } = this.parseId();
-    return `${RES_JSON_DIR}/${owner}/${project}/${relpath}/${RES_JSON_FILE}`;
+    return path.join(
+      RES_JSON_DIR,
+      owner,
+      project,
+      relpath,
+      RES_JSON_FILE);
   }
 
   private hasJsonFile() {

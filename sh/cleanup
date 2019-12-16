@@ -1,2 +1,5 @@
 #!/bin/bash
+TMP_DIR=/tmp/iswaac/task;
+
+[[ -d "$TMP_DIR" ]] && echo "Need to unmount $TMP_DIR" && sudo umount $TMP_DIR;
 rm -rf /tmp/iswaac

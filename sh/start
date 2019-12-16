@@ -1,4 +1,17 @@
 #!/bin/bash
+TMP_DIR=/tmp/iswaac/task;
+TMP_DIR_SIZE=256m;
+
+echo "Building the server";
 npm i && tsc || exit 1;
+echo "Stopping existing server process";
 fuser -kv 2615/tcp;
+
+if [ ! -d "$TMP_DIR" ]; then
+  echo "Mounting a $TMP_DIR_SIZE tmpfs dir at $TMP_DIR";
+  mkdir -p $TMP_DIR;
+  sudo mount -t tmpfs -o size=$TMP_DIR_SIZE tmpfs $TMP_DIR || exit 1;
+fi
+
+echo "Starting the server";
 node tsc-bin;
