@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "lru-cache": "5.1.1",
-    "iswaac": "1.0.2"
+    "iswaac": "1.0.4"
   },
   "devDependencies": {
     "@types/lru-cache": "5.1.0",
