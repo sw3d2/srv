@@ -184,7 +184,10 @@ class QTask {
           shell: true,
         };
 
-        let proc = cp.spawn(command, options);
+        let proc = cp.spawn(
+          `/usr/bin/time -v ${command}`,
+          options);
+
         QTask.tprocess = proc;
         log.i(`pid ${proc.pid}: ${command}`);
 
