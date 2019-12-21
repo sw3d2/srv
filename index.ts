@@ -5,28 +5,28 @@ import * as path from 'path';
 import * as zlib from 'zlib';
 import * as LRUCache from 'lru-cache';
 import * as cp from 'child_process';
+import * as crypto from 'crypto';
 
 const PORT = 2615;
 const HOST = 'api.iswaac.dev';
 const GZIP_SIZE = 4096;
 const MAX_QUEUE_SIZE = 100;
 const MAX_TASKS_COUNT = 1e4;
-const QTASK_CHECK_INTERVAL = 1000;
+const QTASK_CHECK_INTERVAL = 1e3;
 const QTASK_TIMEOUT = 60e3;
-const GIT_BASE_URL = 'https://github.com';
 const BASH_SCRIPT = 'node_modules/.bin/iswaac';
 const TASK_TEMP_DIR = '/tmp/iswaac/task';
-const TASK_RES_JSON = `${TASK_TEMP_DIR}/json/tm3d.json`;
 const RES_JSON_DIR = '/tmp/iswaac/json';
 const RES_JSON_FILE = '3d.json';
+const HASH_LEN = 8; // First 8 chars from SHA512.
 const CERT_DIR = `/etc/letsencrypt/live/${HOST}`;
 const CERT_KEYFILE = 'privkey.pem';
 const CERT_CERFILE = 'cert.pem';
 const CORS_ORIGIN = 'Access-Control-Allow-Origin';
 const CONTENT_TYPE = 'Content-Type';
 const CONTENT_ENCODING = 'Content-Encoding';
-// e.g. /json/microsoft/TypeScript/src
-const VALID_URL = /^\/json(\/[\w][\w-._]*){2,}$/;
+// e.g. /json/github:microsoft/TypeScript/src
+const VALID_URL = /^\/json\/([a-z]+:(?:[\w][\w-._]+\/?)+)$/;
 
 interface SResp {
   statusCode?: number;
@@ -81,22 +81,22 @@ enum QTaskState {
  * 
  *  - Queued: in-memory 100 tasks FIFO queue,
  *      not backed up to disk, lost on crash;
- *      a timer picks tasks from the queue.
+ *      a timer picks the next task.
  * 
  *  - Processing: only 1 task is being processed
  *      at a time; intermediate data gets written
- *      to /tmp/iswaac/task; consists of stages:
+ *      to /tmp/iswaac/task; consists of 4 stages:
  * 
- *        1. git clone -> *.ts sources
- *        2. tsc -> ast.json
+ *        1. Download, e.g. git clone -> *.ts
+ *        2. Parse, e.g. tsc -> ast.json
  *        3. d3.treemap -> treemap.json
- *        4. 3d layout -> layout.json
+ *        4. Generate 3D layout for WebGL.
  * 
- *  - Ready: the 3d layout json is saved to
- *      /tmp/iswaac/json/<owner>/<project>/<path>/3d.json
+ *  - Ready: the 3D layout json is saved to
+ *      /tmp/iswaac/json/<hash>/3d.json
  * 
  *  - Failed: the error is kept in memory and
- *      is lost on process exit.
+ *      is lost when the process exits.
  */
 class QTask {
   static readonly tqueue: QTask[] = [];
@@ -134,7 +134,9 @@ class QTask {
     t.process();
   }
 
-  private constructor(public readonly id: string) { }
+  private constructor(
+    public readonly id: string,
+  ) { }
 
   get state(): QTaskState {
     if (this.error)
@@ -159,8 +161,7 @@ class QTask {
 
   enqueue() {
     if (QTask.tqueue.length >= MAX_QUEUE_SIZE)
-      throw new HttpError(503, 'Queue Full',
-        `There are already ${QTask.tqueue.length} tasks in the queue`);
+      throw new HttpError(503, 'Queue Full');
 
     log.i('task', this.id, 'enqueued');
     QTask.tqueue.push(this);
@@ -170,14 +171,20 @@ class QTask {
 
   private async process() {
     log.i('task', this.id, 'started');
-    let { owner, project, relpath } = this.parseId();
     let time = Date.now();
 
     try {
       QTask.tpending = this;
+      let jsonpath = this.getJsonPath();
+
       QTask.tpromise = new Promise((resolve, reject) => {
-        let url = `${GIT_BASE_URL}/${owner}/${project}`;
-        let command = `${BASH_SCRIPT} ${url} ${TASK_TEMP_DIR} ${relpath}`;
+        let command = [
+          BASH_SCRIPT,
+          this.id,
+          TASK_TEMP_DIR,
+          jsonpath,
+        ].join(' ');
+
         let options: cp.SpawnOptions = {
           timeout: QTASK_TIMEOUT,
           stdio: 'inherit',
@@ -198,12 +205,8 @@ class QTask {
 
       await QTask.tpromise;
       log.i('bash script finished');
-
-      let jsonpath = this.getJsonPath();
-      let jsondir = path.dirname(jsonpath);
-      log.i(`moving the json file to ${jsonpath}`);
-      cp.execSync(`mkdir -p ${jsondir}`);
-      fs.copyFileSync(TASK_RES_JSON, jsonpath);
+      let stats = fs.statSync(jsonpath);
+      console.log('Output:', jsonpath, stats.size, 'bytes');
       log.i('task', this.id, 'finished');
     } catch (err) {
       log.e('bash script failed:', err);
@@ -218,31 +221,23 @@ class QTask {
   }
 
   private getJsonPath() {
-    let { owner, project, relpath } = this.parseId();
+    let hash = crypto.createHash('sha512')
+      .update(this.id).digest().toString('hex').slice(0, HASH_LEN);
     return path.join(
-      RES_JSON_DIR,
-      owner,
-      project,
-      relpath,
-      RES_JSON_FILE);
+      RES_JSON_DIR, hash, RES_JSON_FILE);
   }
 
   private hasJsonFile() {
     return fs.existsSync(this.getJsonPath());
   }
-
-  private parseId() {
-    let [owner, project, ...path] = this.id.split('/');
-    return { owner, project, relpath: path.join('/') };
-  }
 }
 
 async function executeHandler(req: http.IncomingMessage): Promise<SResp | null> {
   if (!req.url || !VALID_URL.test(req.url))
-    throw new HttpError(400, 'URL');
+    throw new HttpError(400, 'Bad URL');
 
-  let id = req.url.split('/').slice(2).join('/');
-  let task = QTask.get(id);
+  let taskId = VALID_URL.exec(req.url)![1];
+  let task = QTask.get(taskId);
 
   switch (task.state) {
     case QTaskState.READY:
