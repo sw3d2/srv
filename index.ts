@@ -188,6 +188,7 @@ class QTask {
         let options: cp.SpawnOptions = {
           timeout: QTASK_TIMEOUT,
           shell: '/bin/bash',
+          stdio: 'inherit',
         };
 
         let proc = cp.spawn(
@@ -197,20 +198,8 @@ class QTask {
         QTask.tprocess = proc;
         log.i(`Task ${this.id} started pid=${proc.pid} :: ${command}`);
 
-        let logs: string[] = [];
-
-        proc.stdout?.on('data', data => {
-          logs.push(data + '');
-          log.d(`[${proc.pid}] :: [I] ${data}`);
-        });
-
-        proc.stderr?.on('data', data => {
-          logs.push(data + '');
-          log.e(`[${proc.pid}] :: [E] ${data}`);
-        });
-
-        proc.once('close', code => code ?
-          reject(new Error(`Exit code ${code}\n${logs.join('')}`.trim())) :
+        proc.once('exit', (code, sig) => code ?
+          reject(new Error(`Exit code=${code}, sig=${sig}`)) :
           resolve());
       });
 
