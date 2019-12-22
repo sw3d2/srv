@@ -1,2 +1,2 @@
 #!/bin/bash
-ssh root@api.iswaac.dev
+ssh root@api.iswaac.dev;

@@ -187,8 +187,7 @@ class QTask {
 
         let options: cp.SpawnOptions = {
           timeout: QTASK_TIMEOUT,
-          stdio: 'inherit',
-          shell: true,
+          shell: '/bin/bash',
         };
 
         let proc = cp.spawn(
@@ -196,15 +195,26 @@ class QTask {
           options);
 
         QTask.tprocess = proc;
-        log.i(`pid ${proc.pid}: ${command}`);
+        log.i(`Task ${this.id} started pid=${proc.pid} :: ${command}`);
 
-        proc.once('exit', code => code ?
-          reject(new Error('Exit code: ' + code)) :
+        let logs: string[] = [];
+
+        proc.stdout?.on('data', data => {
+          logs.push(data + '');
+          log.d(`[${proc.pid}] :: [I] ${data}`);
+        });
+
+        proc.stderr?.on('data', data => {
+          logs.push(data + '');
+          log.e(`[${proc.pid}] :: [E] ${data}`);
+        });
+
+        proc.once('close', code => code ?
+          reject(new Error(`Exit code ${code}\n${logs.join('')}`.trim())) :
           resolve());
       });
 
       await QTask.tpromise;
-      log.i('bash script finished');
       let stats = fs.statSync(jsonpath);
       console.log('Output:', jsonpath, stats.size, 'bytes');
       log.i('task', this.id, 'finished');

@@ -1,0 +1,4 @@
+#!/bin/bash
+git pull;
+sh/cleanup;
+nohup sh/start;
